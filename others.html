@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>Find Nearby Hospitals</title>
+  <ion-icon name="location"></ion-icon>
+  <style>
+    #map {
+      height: 400px;
+      width: 100%;
+    }
+  </style>
+  <link rel="stylesheet" type="text/css" href="/pages/others.css">
+
+</head>
+<body>
+  <h1>Find Nearby Hospitals</h1>
+  <button id="find-me">Allow My Location</button>
+  <br>
+  <!-- Add an input field for location search -->
+  <input id="locationInput" type="text" placeholder="Search for a location">
+  <button id="search-button">Search</button>
+  <p id="status"></p>
+  <div id="map"></div>
+  <ul id="hospitalsList"></ul>
+  <a id="map-link" href="" target="_blank"></a>
+  <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDQyTl-C2jsDh8ITfemoZUH_jqR94-yT0I&amp;libraries=places"></script>
+
+<script>
+
+
+  // Define the showMapWithMarkers function
+  function showMapWithMarkers(latitude, longitude) {
+    const location = new google.maps.LatLng(latitude, longitude);
+    const mapOptions = {
+      center: location,
+      zoom: 15, // You can adjust the zoom level as needed
+    };
+
+    const map = new google.maps.Map(document.getElementById('map'), mapOptions);
+    //const hospitalList = document.querySelector('#hospital-list ul');
+
+    // Create a marker for the location
+    const marker = new google.maps.Marker({
+      position: location,
+      map: map,
+      title: 'Your Location',
+    });
+
+    const hospitalMarkers = [];
+    // Use the Google Places API to search for nearby hospitals
+    const service = new google.maps.places.PlacesService(map);
+    service.nearbySearch(
+      {
+        location: location,
+        radius: 5000, // Search within a 5km radius (adjust as needed)
+        type: ['hospital'], // Specify the type of place (in this case, hospitals)
+      },
+      (results, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK) {
+
+          // Create a DistanceMatrixService object
+      //const distanceService = new google.maps.DistanceMatrixService();
+          for (const place of results) {
+            // Create a marker for each hospital
+            const hospitalMarker = new google.maps.Marker({
+              position: place.geometry.location,
+              map: map,
+              title: place.name,
+            });
+
+
+            // Create an InfoWindow for the hospital
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                <strong>${place.name}</strong><br>
+            Location: ${place.vicinity}<br>
+            Contact: ${place.formatted_phone_number || 'N/A'}<br>
+            Website: <a href="${place.website || '#'}" target="_blank">${place.website || 'N/A'}</a><br>
+            <a href="https://www.google.com/maps/dir/?api=1&destination=${place.geometry.location.lat()},${place.geometry.location.lng()}" target="_blank">Show Directions</a>
+          `,
+              });
+
+              // Add a click event to open the InfoWindow when clicking the marker
+              hospitalMarker.addListener('click', () => {
+                infoWindow.open(map, hospitalMarker);
+              });
+
+
+            // Add the hospital marker to the array
+            hospitalMarkers.push(hospitalMarker);
+
+// Add the hospital name to the list
+const hospitalsList = document.getElementById('hospitalsList');
+const listItem = document.createElement('li');
+listItem.textContent = place.name;
+listItem.innerHTML = `
+<strong>${place.name}</strong><br>
+  Location: ${place.vicinity}<br>
+  Contact: ${place.formatted_phone_number || 'N/A'}<br>
+  Website: <a href="${place.website || '#'}" target="_blank">${place.website || 'N/A'}</a><br>
+  <a href="https://www.google.com/maps/dir/?api=1&destination=${place.geometry.location.lat()},${place.geometry.location.lng()}" target="_blank">Show Directions</a>
+`;
+hospitalsList.appendChild(listItem);
+
+
+            // Add the hospital to the list
+            //const listItem = document.createElement('li');
+            //listItem.textContent = place.name;
+            //hospitalList.appendChild(listItem);
+          }
+        }
+      }
+    );
+  }
+
+  document.getElementById('find-me').addEventListener('click', () => {
+    // Your geolocation code here...
+
+    const geocoder = new google.maps.Geocoder();
+    const location = document.getElementById('locationInput').value;
+    geocoder.geocode({ address: location }, function (results, geocodingStatus) {
+      if (geocodingStatus === google.maps.GeocoderStatus.OK && results.length > 0) {
+        const coordinates = results[0].geometry.location;
+        const latitude = coordinates.lat();
+        const longitude = coordinates.lng();
+        const status = document.getElementById('status');
+
+        status.textContent = `Latitude: ${latitude}, Longitude: ${longitude}`;
+
+        // Call the showMapWithMarkers function here
+        showMapWithMarkers(latitude, longitude);
+      } else {
+        status.textContent = 'Location not found';
+        // Handle the error case here.
+      }
+    });
+  });
+
+
+    // Add markers for nearby hospitals
+    /*hospitalLocations.forEach((hospital) => {
+      const hospitalLocation = new google.maps.LatLng(hospital.latitude, hospital.longitude);
+      const hospitalMarker = new google.maps.Marker({
+        position: hospitalLocation,
+        map: map,
+        title: hospital.name,
+      });
+    });
+  }
+  
+  //}
+
+  const status = document.getElementById('status');
+  const findMeButton = document.getElementById('find-me');
+
+  findMeButton.addEventListener('click', () => {
+    // Your geolocation code here...
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(function(position) {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        status.textContent = `Latitude: ${latitude}, Longitude: ${longitude}`;
+
+        // Call the showMapWithMarkers function here
+        //showMapWithMarkers(latitude, longitude);
+        fetch('https://your-hospital-api.com/hospitals')
+          .then(response => response.json())
+          .then(hospitalData => {
+            // Call the showMapWithMarkers function with the hospital data
+            showMapWithMarkers(latitude, longitude, hospitalData);
+          })
+          .catch(error => {
+            status.textContent = 'Error fetching hospital data: ' + error;
+            // Handle the error case here.
+          });
+      }, function(error) {
+        status.textContent = 'Error getting location: ' + error.message;
+        // Handle the error case here.
+      });
+    } else {
+      status.textContent = 'Geolocation is not available in this browser.';
+    }
+  });*/
+
+
+    // Function to calculate the distance between two sets of coordinates using the Haversine formula
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371; // Radius of the Earth in kilometers
+      const dLat = (lat2 - lat1) * (Math.PI / 180);
+      const dLon = (lon2 - lon1) * (Math.PI / 180);
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const distance = R * c;
+      return distance.toFixed(2); // Return the distance rounded to 2 decimal places
+    }
+
+
+    document.addEventListener('DOMContentLoaded', function () {
+      const status = document.querySelector('#status');
+      const mapElement = document.querySelector('#map');
+      const hospitalsList = document.querySelector('#hospitalsList');
+      let map; // Create a map variable for global use
+  
+      // Function to display the user's location on the map and add markers for nearby hospitals
+      function showMapWithMarkers(latitude, longitude) {
+        const mapOptions = {
+          center: { lat: latitude, lng: longitude },
+          zoom: 15,
+        };
+  
+        map = new google.maps.Map(mapElement, mapOptions);
+  
+        // Use the Google Places API to find nearby hospitals
+        const request = {
+          location: new google.maps.LatLng(latitude, longitude),
+          radius: 50000, // Radius in meters (adjust as needed)
+          type: 'hospital',
+        };
+  
+        const service = new google.maps.places.PlacesService(map);
+        const userLocationMarker = new google.maps.Marker({
+      position: { lat: latitude, lng: longitude },
+      map: map,
+      title: 'Your Location',
+    });
+
+
+        userLocationMarker.setIcon('https://maps.google.com/mapfiles/ms/icons/blue-dot.png');
+    const image =
+    "./hospital (2).png";  
+    //"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAA+VBMVEX19fVCsasid3D////39/f//v/tO0fy8vLs7Owhdm/w8PBCsqwAbWYAUkfp6enj8vEhqKJgk5BBf3qtxMEAaGDd5+Ukcm1Et7IZqJ9OiIQAYVeEpqIRcmyqxL8/rKY2mZNfpqGr2NQtfnjrGy/O3dz8KDk2rqd4wr3v9vU/qKMuubH73t8AWVEdbGeaz8twwLvA4t+4c3bsKjn2q67pRU/0///uQ0/T6unD1tWPr62z1tRduLSQycZzv7zN5+VTq6WKj453m5aghYXYVF3qABLrHSym4N7Uio374eL2nKHzl5sZjIf4vsLxdnvtMEDsByXxhYrwYmyKurjRAWvpAAASWUlEQVR4nO2di3rjtrGAJRIIr0vRNiXLklYbexWa2li26yaxZLlOt6ftadNz0sv7P0xnwIt4AUmQgii3n2Y3sZYUDf6cwQwwAIFe7yQnOclJTnKSk5zkJCc5yUlOUiEE/nRaHkjXBXaLSHRH67Q8zdG7faR6z+ywRChJJ47WISIhumaaZocFmj2HOB0+UsfRnV53BYKJmg7Ru3uiBEzU1DosD0wUbKY7I4UnCiaqdebaCJTWoYkSTTN1LSqwg0JJz4SyHE03u3qePSxN63Vookx/ZnehKXRqWnfBF2qgzpxaVzrUHQDUuwPUHEfTOmxcEBOqgxP5mCzlYZjBQDuN9OhmwHVrhIKQIBL2L3qYZioS6vu50SYXQ8wFH+M8v9zfbi/7vu+7IPCj398+vF6/DYKQs/JXNrpZNFEHPXeTi9qXSGhv+Pi67UdQVj/8D/9nhbj+9vbluabT0eiJogKxFnZASAgNXm77Y9efR1xcseY+YN4/gy73Ky8UiPSEgNs+eDUEvMG95brz+XxZCpcSoLx9JHTvJgFaaBf9F8Trj8Esl5Y1L1dfWpPwn+vevlVoUqBYFgO1w4cJSh63rs9ue2n15yKAMabrvw7aKxIITaiE+9y7QLmgvlffTerdElQopMSduW7f1KQWNQWFKHHgtijwPTD1JSJmpCk1grVajyqneSB2A/pBG4fIN877zWaEobj9l7b1kRyyFtLB7bhBrathfFQ7TszVCiGvY7/+1oVlvH2mx2bKCH2MGy0yhLV5xrfvSIsEHIw0vER8//GdqJHQa1emgUYCT8z9XfAe1EgCUOCB5F2okb75B1BgIu6r2vHwSk4IvUcFSq+DO/Gto1oqIduDWWiCOH47nqWqg77EGFEi0CC/VnudjlolQp8PbKExI1bGowA+jg8OF4l7ewxDpS+5Kmgd0t9sZTdw6gekIcznehGWddmawKp5Ppa/lapFYpq6Xs0IgJx7bKdFuKo+nyNXi5qp4xhxJeA4R2MxLbYi7Ftz6CrX9bykIpqaxpLx5YCPeUDGJ06Y++IcAGv7lv6DRETd1DWz/PeRN06ch2pYBWhlJHdyzv7UIoJHlcRIoBpWqJAMOGEiSWhz5fLLz9+m5UvaKbF6OBeoxO4rlTXkUplnJ0Hjpvblzz98l5Gn33/JPh8hA7fcl05CP9k2J3z69RsmT0/hz2+++9omtFjj5w6a4eptY8Avf/guAvytGiH++j9f6q/jiHv4nkYhEIoQ/ubXhPBzpMQf2hFKjvwcIYMW3SVphJjZuD9wVaRNOhPxN+XpEBEPWxXpq3glZIOgTBjh0+fPn//4W/WPf4KfjDA62RjSDw4ISJ5FO0yAN97eX4fy5/99AvX95fvvv++p36Mg4Z/Dc/fbsd+osWf5B+xKESL+xN2HgZrIX4Hwr4imhYSg0h9+jE8Gt26z9qz7drC5MvRemBAcQkp+edpZ6efISn/cnc53xOrEP1BNJA38qP+qUviT0mHB06QI1YYRyH+V1kDNCn0QHQ60fJXSFMEvHF+aJlS/bdbCGR8m7pO3dJepsh/hX6sZ+YWjw8wX1n+r7JhkiwMv9nAQZ0NSZUBfoOqO3EGW8P/+hFA//ZRqtf1/9huTT1WI1ny5zEAeICiSHnncVRbozVV258ZqTn4AsJ8AMbLWb775+1+yX7iyP5UbKs55WGYLlN94A8Kd1qy6HmuBkPzj6fMT/P2M8R7knzlA9cpYlWvRApuxlpmzLGJIRkySh2iiy+rMUYEwFlp24spQyhGXy/k8bzTylUijUGjVmmiRkHLQcgeA0BjxDNWCJ2ot+wXXJqDEZlpOaqHFHmdN2CgS1gkQMsRigovNylkWjs/rldiMkEZPEQwUKn2xQD7hYAHCPg2Hw8UQPwR4iMQnh2lCBQ01D9JnFlowGkvAnTYiJM9urEF8nnWBPyb0Jp73YY2Ad/DpLoBPXyfe5G4KH8idByeHGUIji4g52KVVVuPlNsDpbQzYrzXRFOEM7ttGwoUNt28j4dlMUWZTMFziAZK3yBAqOXfDwgTHRJm4MntRJGC9JrDPudBMrjQhg1gwHKbDmWLMmA65hDlDZZWipBD/WmLAINehJ51b1lKkjx8T2ophhDqcKIZiR4QKIww8w+AQpj2qhdM3l6WJRkuimdJtPxpdgNjUgPDctmcMYujZtj1CBzP17JW3wZMje7WaDPOEihJ7VEwUV7YP3WdpgCzJbWGcrw8UGUIVJ+azYJF8CD+p2U8ZwkSLYYHlsRc7UZIk7PmiydQH+yyhsKQII4/K6t/Sqsr2+/IIrSjQVw9OyCIM3c08cjEV5UnrYYCR4ujeUkx/RcJ0b7+seZMlBC2yYF/zPP17WYTX/pyZqHCqNCa8Whmhpxl4s9mMeZoNfPI+4slzOORxPE1iqAI1XpKZqg+owL7QewVZwplyo8TRQjG8KOIbdkU8jAjBUKHFXYcoaxQDc4hWdac+K1ZMiLfqMcJ0xFeiiM+Nh5m6WCfuowxC0nvGZF8tYvpsosMb0FxCuIv4G06rLZGUodY9VEnJYQoNGqu+DrrjZAj7MiaE5rZ3xwg/eFHL+wyb4KxdylreO8KbiOzGntjYlcq3UblP1ZJipeqDQB7Y3T6nPOOH6OdwDcI+LdaLddh7Wi8WaxKehIPxFecXu6uDjcfraXCLlVIRVRHATIo7IUyktg+cJgTXOzJQifWGKiVdQwa1OXfLv89mgHeElIYpDEppjpKyc/HBLKEa2EkbtbJk/15CReROLclLTl8FHZbrlOYIo39/tAs9Da7ISA3HPafKJwn3dIE1bnFxEaR0uDkDwQPkK3zAGKGu8dAaSfDk17jpzQjX6wuqDi4uhjslKrzcTVokEAoMirrgZYIP9ghiQeg6Y0JsyYTRYgKfJmHEn83CiM8OLdKE596HgXpxN8HT54YiYqgyhkvVbR0gS+IHd7NzILQnacKZEmcxsvGwmMUICWd3QDixsft4lo6LVUXv72oEXCkbpphOobW5nk6H7Qk/TqdEHU6nazXM5wgYqgxnSusHtvMDMRwrvUus1IZDSBgUrTTtg1KEVe5GRrImqHWlFiMMNAAIzCBN+HG6mU7xyI/wc7rBuwctb6aMaxOfTAhZn58EAQHOFGFVXJQQLuJMaR1h8MFDTzPJeJqcXjLHsgdjTxOo6w+TTVaHVYYqoWUqEA5DwomBngaNktbHwwJ3SGhMBup6ZRcJeYYaJhz2D4jksdbThISr0RlYnjJaFHUoIIzwTBkF6sIwPhYIeYYaZlXajkHtZl8KBHxGiI3pXqycloRp/eYICz2NKHFktUyakt2qBOS+NjvDCHs0pGRSJKQZqSUs6LBgqCyPircmgVDUSpUrom5Gq32sdAQhc70acaxUKQy+xXPDWxPGHwVmCVlxm4aWeBp6UZCARwieBgg9jqdJDDVFGOZu9589JGqlwYfJeVm0OMecfkY8L+ARetBqW99xogXPUENPM9/flwrqMAnXaoFwCO0zIyPQXLvgELJfQTHi8wkzcTEaxZRBKKbDjPfgEOZu1eYRpoVPyMnAdadDfh8/JsyZGxIWI34stJyw2NPYn1AwHoLgOwxkP8KARHZeRlhowO0/iEheBAkv7NkKOrebPQiHo9VqNbOvyuuhUoiLl521S1WWATSUCWlPOA1TF94Fr02TMdSdFvefOSTat1AjjL0IQyqbH/F5hipjSrRIMrFrwpS7kZFOJI0J820a6YQpQ5XRx6eNrfTwhLuehozRp/pc2zEIY4/qDiXo8PY9EsY9DRlDM/Wdi6MQxg04GSMztWmMIxGiu5HzKhvvndj3QMi0KGU9CfpOdYiIf5MykE/rnOnxCJWJBFcq4GqOR2gYUsbxa9vegoTpmWtyCI3ZmZQXSklQs1TZ8XQI36y8c9G53nUVUZQwmSojjdAbVi0kIW7BUBFrZkQI9S2M0Wi0e/q8PM10ZpQSGoVJU3isXIW4FLzwktDFLqLVty5THW0XEw92qJwJ3u8dj3CkjHa3ySXcMCqDncsT3twUAWdfq4xUY9sHCCIWDTOzzof18/nVVXRHsyuQ1SgtkY8xAHHnbjLfGBmjG7gsgjDgt13lYG4MQMyr0VtXrG3RwyVpRQmLkxXY3K6d/7n8tNrVMcyHpuanhfdljIxR2kqVjG9VwiuM9K9If88AvmRaWIpQLQMgRNcdU3zh8ny8QAVml0wCxEL5GYlNlFObBOSGSf5oRawgGm450WA9G5IDLC5FUokIKhkhYiu62ESLUmqkuGo5rprcoDmQSQuH0w/zNbMCkTnRnIk24EMNKsVKCN6qTIWOrmum4zR68WmXjroE88w4UgFE9CTt8EIDxf8ZxYGBTclqw2wHD63hkksQ9OP83WXaxQghjtBI25uoEuIVfoFX1upmgE2XZt+9flgKWIaIXtTgxWthQPjDO3PFN1Jc8dohzdf1jjqJLAyWTt/hIiLcqjVhCMi7usTPkLb7W0RToS+xIlYseFVAZBoctQM00IsqnDgYnuSqEOKgaWKsb4xIyJhpsF+9Zlke0WBx0GhbC0F/RomRehfFDA1BE9V0rd0OHtCuCQN99eqIl5+y7ZYRBntj1CrSJ3VQuNGNJtrT9F6r1fWhl3jJ1resmXmd1mLUUGtZCVmYx2DPu977yFn8A03Uab/LIvShLkXeC0ohovZaGihQMf0ZJQ29EYeDmBr8bb+DBwl8seU7E0MdMRNtKehgWFuNC+hdcAB7Dm64tkfmhtaPd+e0ONon0INx3pRdbYy4tZDtCNgekLB38psitgSM2jIlpxRvUQLi7LU8JhF6LyGNaLTvTzDEsovLuk1At+f+dVTk/aCsFveQklAP4h1uP6BAeMkqKYglx6FTcShAXMKlO8QSQGN2fsClEzV1K7x8nAwtcqW01yRH6mfuHxjR8DYHWsosEvoovhvJQRAlDVVUITZYG1I+omGsOliitcEiu7IRDWVSFuslSqOFkuUiQmOmerBJFuJzg42BZCIail05UCFPCrsidIU4u+pqEwj1/giImE/sbo8reuuKr6EvDbEDN5oIUYvrxpZvHCAH0ZDZliG41Xt1wwG6GYUNPPZANGrT/gAosxKynFwlIsn3pKwKJdYiGmxko6ovyTQod3+LuowcgbpYMNLSulmDiB3lSiUa9lDm6siYsMLxxZqv0dc8YkWiqhoRVVhFOJsN5MYJ4rB9WGoR00GjzrXWDaFWVcTZeSB7fWtiCuU75IX+0rw/HvbOjrfXI332RfYWETHUUnbF25ROSOhASHDongauUXQ8PkTM+RupiLhy5rnUMNhK6JsvvEhWYy1602NaaCSEkIexaGVsggidJXt95B0sY2mwV24DRGPyFSdbHGfnw7yQ3q0rmGYURvRuFu9qX2f6LLpfpxjizP6oHt3FZIWoL30xxhpE7OnOvK/BcWMEVyi5Fts1pk6LM+9s+A5cKE8IEdvduRJxNnkvfPz5OvTFAsjyFIdVjWjY3lTn8nXLjCORpXNX6fNtyT7yKWwOooHmeX5B+BOBTFmb5olK1ZwcQoPrresX4mMmB5BBZFNrZ54xHVLGx5lGojmdxkXiEKdyF09CB/cAOQ+XAYpnNeKEMauIaDDjHH1dk7LqR3qmQI9cppigQbPmmVJ18PIwT+okpjgu/cyL9NFY/8z27KvNAvFKUkNQVoNJ6TLEAZOp2uMyFkLp4OW177q+71u5+WI4C/CTZ3sT+2yzwCVDKmbdo4nqjkyCqpvGyXHMRIWeKLTKKSWDx/vbre+PXRTfZz/csdt/+NcFwpXM9A1/Af7VzUaT0tMXt7mGgAZxkmqDiwjBtctIMHh+e3tEeXsbBARX96y9b6KhBvV2JtrOrB0Tc6ltplYRtrtpIoJXmQ5O+NWbF9dSCM6h1jsMTQSTfl36GM2BONEhIdEdDYy0q+KwQDZFtTtAaMk4XVoMQRfqdBd5wxm/XYUJNrdRN/V2U6jbFahj4HW0PSfjNRAHGHtmo0Cxh4DBoIlqe80YbVQgwbmbmtZZ+xfHMAkxSWfVEE20uxoBoutQJ7rsFYKP0btM7IEX7dSNggqRsEO/7bBH2qEQfKevyw4aONJm7w/uX2J3USIsr9dl4zAssjs3GpbX4gW7vcv8Ly/vJCc5yUlOcpKTnOQk/xXS/i3xoxTYYtEF3dxnELNxgcTU9+mxNhhYiK/QNX2PTnlzfWg6vn3fvsDGzxQeKdHqRk0rymvcV9I0jewxLtyC0NHM9kNEbQh1fZ/1E1oI1EO9u+w0m6jdbeaIjQ53nMk5ZQFOcpL/HPk3su0C0AwUJ2EAAAAASUVORK5CYII=";
+  
+        service.nearbySearch(request, function (results, status) {
+          if (status === google.maps.places.PlacesServiceStatus.OK) {
+            results.forEach(function (place) {
+              const name = place.name;
+              const address = place.vicinity;
+              const contactNumber = place.international_phone_number || 'N/A';
+              const website = place.website || 'N/A';
+
+              // Calculate the distance between your location and the hospital
+              const hospitalLat = place.geometry.location.lat();
+              const hospitalLng = place.geometry.location.lng();
+              const distance = calculateDistance(latitude, longitude, hospitalLat, hospitalLng);
+
+              const listItem = document.createElement('li');
+              listItem.innerHTML = 
+              '<strong>' + name + '</strong><br>' +
+          'Address: ' + address + '<br>' +
+          'Distance:' + distance + 'km' + '<br>' +
+          'Contact Number: ' + contactNumber + '<br>' +
+          'Website: <a href="' + website + '" target="_blank">' + website + '</a>' + 
+          '<br><a href="#" class="directions-link" data-lat="' + hospitalLat + '" data-lng="' + hospitalLng + '">Show Directions</a>';
+              hospitalsList.appendChild(listItem);
+  
+              // Add markers for each hospital
+              const marker = new google.maps.Marker({
+                position: place.geometry.location,
+                map: map,
+                title: name,
+                icon: {
+                url: image, // URL to your custom marker image
+          scaledSize: new google.maps.Size(46, 46), 
+                }
+            });
+
+            // Add a click event to the marker
+            marker.addListener('click', function () {
+          const request = {
+          placeId: place.place_id,
+          fields: ['name', 'vicinity', 'formatted_phone_number', 'website'],
+        };
+
+        service.getDetails(request, function (placeResult, status) {
+          if (status === google.maps.places.PlacesServiceStatus.OK) {
+            const contactNumber = placeResult.formatted_phone_number || 'Contact number not available';
+            const website = placeResult.website || 'Website not available';
+
+        
+          // Create an info window to display the hospital name
+          const infoWindow = new google.maps.InfoWindow({
+            content:'<div>' +
+              '<strong>' + name + '</strong><br>' +
+              'Address: ' + address + '<br>' +
+              'Distance:' + distance + 'km' + '<br>' +
+              'Contact Number: ' + contactNumber + '<br>' +
+              'Website: <a href="' + website + '" target="_blank">' + website + '</a>' +
+              '</div>',
+        
+          });
+
+          infoWindow.open(map, marker);
+        } else {
+            console.error('Error fetching place details');
+          }
+        });
+      });
+
+      // Add a click event to the "Show Directions" link
+      listItem.querySelector('.directions-link').addEventListener('click', function (e) {
+          e.preventDefault();
+          // Retrieve the hospital's latitude and longitude from the data attributes
+          const hospitalLat = this.getAttribute('data-lat');
+          const hospitalLng = this.getAttribute('data-lng');
+
+          // Open Google Maps with directions
+          window.open('https://www.google.com/maps/dir/' + latitude + ',' + longitude + '/' + hospitalLat + ',' + hospitalLng);
+
+
+      });
+        });
+          } else {
+            hospitalsList.innerHTML = 'No hospitals found nearby.';
+          }
+        });
+      }
+  
+      // Function to handle success when the user allows location access
+      function success(position) {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        status.textContent = `Latitudeppp: ${latitude}, Longitudepp: ${longitude}`;
+        showMapWithMarkers(latitude, longitude);
+      }
+  
+      // Function to handle error when location access is denied
+      function error() {
+        status.textContent = 'Unable to retrieve your location';
+      }
+  
+      // Event listener for the "Allow My Location" button
+      document.querySelector('#find-me').addEventListener('click', function () {
+        if ('geolocation' in navigator) {
+          status.textContent = 'Locating...';
+          navigator.geolocation.getCurrentPosition(success, error);
+        } else {
+          status.textContent = 'Geolocation is not supported by your browser';
+        }
+      });
+    });
+
+    // Add an event listener for the "Search" button
+    document.querySelector('#search-button').addEventListener('click', function () {
+        const locationInput = document.querySelector('#locationInput');
+        const location = locationInput.value;
+
+        // Use the Google Geocoding API to convert the location name to coordinates
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address: location }, function (results, geocodingStatus) {
+          if (geocodingStatus === google.maps.GeocoderStatus.OK && results.length > 0) {
+            const coordinates = results[0].geometry.location;
+            const latitude = coordinates.lat();
+            const longitude = coordinates.lng();
+            status.textContent = `Latitude: ${latitude}, Longitude: ${longitude}`;
+            showMapWithMarkers(latitude, longitude);
+          } else {
+            status.textContent = 'Location not found';
+          }
+        });
+      });
+
+      function initAutocomplete() {
+      const input = document.getElementById('locationInput');
+      const autocomplete = new google.maps.places.Autocomplete(input);
+    }
+
+    // Event listener for the "Search" button
+    document.querySelector('#search-button').addEventListener('click', function () {
+      const locationInput = document.querySelector('#locationInput');
+      const location = locationInput.value;
+
+      // Use the Google Geocoding API to convert the location name to coordinates
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: location }, function (results, geocodingStatus) {
+        if (geocodingStatus === google.maps.GeocoderStatus.OK && results.length > 0) {
+          const coordinates = results[0].geometry.location;
+          const latitude = coordinates.lat();
+          const longitude = coordinates.lng();
+          status.textContent = `Latitude: ${latitude}, Longitude: ${longitude}`;
+          showMapWithMarkers(latitude, longitude);
+        } else {
+          status.textContent = 'Location not found';
+        }
+      });
+    });
+
+    // Add an event listener for the "Allow My Location" button
+    /*document.querySelector('#find-me').addEventListener('click', function () {
+      if ('geolocation' in navigator) {
+        status.textContent = 'Locating...';
+        navigator.geolocation.getCurrentPosition(success, error);
+      } else {
+        status.textContent = 'Geolocation is not supported by your browser';
+      }
+    });*/
+
+    // Execute the Autocomplete initialization
+    initAutocomplete();
+
+    // Add an event listener for the "Search" button
+document.querySelector('#search-button').addEventListener('click', function () {
+  const locationInput = document.querySelector('#locationInput');
+  const location = locationInput.value;
+
+  // Use the Google Geocoding API to convert the location name to coordinates
+  const geocoder = new google.maps.Geocoder();
+  geocoder.geocode({ address: location }, function (results, geocodingStatus) {
+    if (geocodingStatus === google.maps.GeocoderStatus.OK && results.length > 0) {
+      const coordinates = results[0].geometry.location;
+      const latitude = coordinates.lat();
+      const longitude = coordinates.lng();
+      status.textContent = `Latitude: ${latitude}, Longitude: ${longitude}`;
+      showMapWithMarkers(latitude, longitude);
+    } else {
+      status.textContent = 'Location not found';
+      // Handle the error case here.
+    }
+  });
+});
+
+
+// Initialize the map
+let map;
+function initMap() {
+    map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: 0, lng: 0 },
+        zoom: 10
+    });
+}
+
+// Event listener for the "Search" button
+document.getElementById('searchButton').addEventListener('click', function () {
+    const locationInput = document.getElementById('locationInput').value;
+    if (locationInput) {
+        // Geocode the entered location to get its coordinates
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address: locationInput }, function (results, status) {
+            if (status === 'OK' && results[0] && results[0].geometry) {
+                const location = results[0].geometry.location;
+                const latitude = location.lat();
+                const longitude = location.lng();
+                map.setCenter(location);
+                map.setZoom(15);
+                displayNearbyHospitals(latitude, longitude);
+            } else {
+                alert('Location not found. Please try again.');
+            }
+        });
+    }
+});
+
+// Function to display nearby hospitals
+function displayNearbyHospitals(latitude, longitude) {
+    const hospitalsList = document.getElementById('hospitals');
+    hospitalsList.innerHTML = '';
+
+    const service = new google.maps.places.PlacesService(map);
+
+    // Request hospitals within a radius of 5000 meters (adjust as needed)
+    service.nearbySearch(
+        {
+            location: { lat: latitude, lng: longitude },
+            radius: 5000,
+            type: 'hospital'
+        },
+        function (results, status) {
+            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                results.forEach(function (place) {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = place.name;
+                    hospitalsList.appendChild(listItem);
+                });
+            } else {
+                alert('No hospitals found in the area.');
+            }
+        }
+    );
+}
+
+  
+
+  </script>
+  
+</body>
+</html>
+
